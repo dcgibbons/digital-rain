@@ -29,7 +29,7 @@ TRAIL_LENGTH        = 2     ; byte
 TRAIL_ACTIVE        = 3     ; Byte
 TRAIL_SIZE          = 4     ; Bytes per struct
 
-MAX_TRAILS          = SCREEN_WIDTH
+MAX_TRAILS          = SCREEN_WIDTH + 10
 DEFAULT_LENGTH      = 13
 TRAILS_RAM          := $1C00
 
@@ -106,14 +106,73 @@ create_trail:
   beq @done
 
 @found_inactive_trail:
+@pick_random:
   jsr get_rand
   and #%00011111    ; mask to 0-31
   cmp #SCREEN_WIDTH
-  bcs @found_inactive_trail ; try again if out of range
+  bcs @pick_random  ; try again if out of range
 
-  ldy #TRAIL_COLUMN
-  sta (ptr_trail), y
+  ; --- Collision Check ---
+  sta temp          ; save candidate column
+  pha               ; save A (column)
+  txa
+  pha               ; save X (current slot index)
+
+  ldx #0
+@collision_loop:
+  txa
+  calc_trail_ptr ptr_trail_color, TRAILS_RAM ; Use ptr_trail_color as temp pointer
   
+  ldy #TRAIL_ACTIVE
+  lda (ptr_trail_color), y
+  beq @next_check   ; ignore inactive trails
+  
+  ldy #TRAIL_COLUMN
+  lda (ptr_trail_color), y
+  cmp temp
+  bne @next_check   ; ignore different columns
+
+  ; Same Column - Check for Overlap
+  ; New Trail spawning at Head=0.
+  ; Collision if Existing Trail covers Row 0.
+  ; Trail covers [Head-Length, Head].
+  ; If Tail (Head-Length) <= 0, then it covers Row 0.
+  
+  ldy #TRAIL_HEAD
+  lda (ptr_trail_color), y ; Existing Head
+  sec
+  ldy #TRAIL_LENGTH
+  sbc (ptr_trail_color), y ; Existing Length
+  
+  ; Result = Tail Position (Virtual)
+  ; If Tail <= 0, Collision.
+  ; Carry Clear (BCC) -> Borrow occurred -> Tail < 0.
+  ; Zero (BEQ) -> Tail == 0.
+  
+  bcc @collision_detected ; Tail < 0
+  beq @collision_detected ; Tail == 0
+
+@next_check:
+  inx
+  cpx #MAX_TRAILS
+  bne @collision_loop
+
+  ; Success - No collision
+  pla
+  tax               ; restore X
+  pla               ; restore A (column)
+  
+  ldy #TRAIL_COLUMN
+  sta (ptr_trail), y ; store confirmed unique column
+  jmp @continue_init
+
+@collision_detected:
+  pla
+  tax               ; restore X
+  pla               ; restore A
+  jmp @pick_random  ; try again
+
+@continue_init:
   ldy #TRAIL_HEAD
   lda #0
   sta (ptr_trail), y
@@ -125,6 +184,7 @@ create_trail:
   ldy #TRAIL_ACTIVE
   lda #1
   sta (ptr_trail), y
+
 @done:
   pla
   tay
@@ -262,9 +322,6 @@ update_current_trail:
 
 @skip_erase:
 
-  ; =========================================================================
-  ; STEP 4: MOVE TRAIL DOWN
-  ; =========================================================================
 @move_trail_downward:
   ldy #TRAIL_HEAD
   lda (ptr_trail), y
@@ -272,9 +329,6 @@ update_current_trail:
   adc #1
   sta (ptr_trail), y
 
-  ; =========================================================================
-  ; STEP 5: DEACTIVATE IF GONE
-  ; =========================================================================
 @deactivate_if_off_screen:
   ; Check if the TAIL is fully off screen
   ; Tail = Head - Length

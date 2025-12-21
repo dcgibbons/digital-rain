@@ -31,7 +31,7 @@ TRAIL_SIZE          = 4     ; Bytes per struct
 
 MAX_TRAILS          = SCREEN_WIDTH
 DEFAULT_LENGTH      = 13
-TRAILS_RAM          := $1A00
+TRAILS_RAM          := $1C00
 
 .segment "ZEROPAGE"
 ptr_trail_offset:   .res 2  ; 16-bit offset into screen & color ram for trail

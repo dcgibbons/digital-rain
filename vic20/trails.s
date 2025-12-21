@@ -288,11 +288,9 @@ update_current_trail:
 
 @get_head_char:
   jsr get_rand
-  ; and #%01111111 ; mask to 0-31
-  ; cmp #32
-  ;beq @get_head_char
-  and #%00001111    ; Mask to 0-15 (Select one of your 16 custom chars)
-  ; Note: NO offset needed for Micro Font (Chars 0-15) as they are at offset 0
+  and #%00011111    ; mask to 0-31
+  cmp #26
+  bcs @get_head_char ; if >= 26, retry
 
   ldy #0
   sta (ptr_trail_screen),y

@@ -208,9 +208,9 @@ patch_char:
   ldx #0
 patch_loop:
   lda character_data, x
-  sta CHAR_RAM, x       ; Offset 0 (Micro Font: Chars 0-15)
+  sta CHAR_RAM, x       ; Offset 0 (Micro Font: Chars 0-25)
   inx
-  cpx #128        ; 16 chars * 8 bytes = 128 bytes
+  cpx #208        ; 26 chars * 8 bytes = 208 bytes
   bne patch_loop
   rts
 
@@ -358,3 +358,33 @@ character_data:
   ; Char 15: GLITCH 2 (Cursor/Block)
   ; Looks like: A hollow data packet
   .byte $00, $3C, $24, $24, $24, $3C, $00, $00
+
+  ; Char 16: Mirrored 0
+  .byte $3E, $22, $22, $22, $3E, $00, $00, $00
+
+  ; Char 17: Mirrored 1
+  .byte $18, $1C, $18, $18, $7E, $00, $00, $00
+
+  ; Char 18: Mirrored 2
+  .byte $3C, $42, $20, $10, $08, $04, $7E, $00
+
+  ; Char 19: Mirrored 3
+  .byte $3C, $42, $20, $18, $20, $42, $3C, $00
+
+  ; Char 20: Mirrored 4
+  .byte $30, $28, $24, $22, $7E, $20, $20, $00
+
+  ; Char 21: Mirrored 5
+  .byte $7E, $02, $3E, $40, $40, $42, $3C, $00
+
+  ; Char 22: Mirrored 6
+  .byte $3C, $02, $3E, $42, $42, $42, $3C, $00
+
+  ; Char 23: Mirrored 7
+  .byte $7E, $20, $10, $08, $04, $04, $04, $00
+
+  ; Char 24: Mirrored 8
+  .byte $3C, $42, $42, $3C, $42, $42, $3C, $00
+
+  ; Char 25: Mirrored 9
+  .byte $3C, $42, $42, $42, $7C, $40, $3C, $00

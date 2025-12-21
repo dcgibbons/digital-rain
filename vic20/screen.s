@@ -34,7 +34,27 @@ SCREEN_WIDTH        = 22        ; Total width
 
 CHAR_ROM            = $8000     ; Standard Character ROM
 CHAR_ROM_LOWER      = $8800     ; Lowercase Chafacter ROM
-CHAR_RAM            = $1400     ; Our Safe RAM destination
+
+; ---------------------------------------------------------------------------
+; MEMORY CONFIGURATION
+; ---------------------------------------------------------------------------
+; Unified Font Strategy: Micro Font at $1800
+; Code: $1000-$17FF (PRG) or $A000 (Cart)
+; Font: $1800 (1KB reserved, 512b used)
+; Trails: $1C00 (256b)
+; Screen: $1E00 (Unexpanded/Forced) or $1000/+8K (Adaptive)
+
+; CHAR_RAM        = $1800     ; 1024 bytes allocated, we use 512 (NOW LINKER MANAGED)
+
+.export CHAR_RAM
+
+.segment "FONT_DATA"
+CHAR_RAM:   .res 512
+
+.ifdef PRG_BUILD
+    FORCED_SCREEN   = $1E00
+    FORCED_COLOR    = $9600
+.endif
 
 ; ---------------------------------------------------------------------------
 ; VIC-20 Kernal Memory Locations not defined above
@@ -75,7 +95,7 @@ init_video:
   jsr detect_video_type
   jsr clear_color_ram
   jsr clear_screen
-  jsr copy_chars
+  jsr init_chars_micro
   jsr patch_char
   jsr enable_ram_fonts
 
@@ -97,7 +117,7 @@ clear_screen:
   lda ptr_screen + 1        ; save high byte of ptr_screen to restore after
   pha
 
-  lda #32                   ; Space Character
+  lda #63                   ; Blank Character (Micro Font Space)
   ldx #2                    ; 2 pages worth
   ldy #0                    ; byte offset within page
 @clear_screen_outer:
@@ -161,41 +181,21 @@ clear_color_ram:
   rts
  
 ; ---------------------------------------------------------------------------
-; Copy Character Set from ROM ($8000 or $8800) to RAM ($1400)
-; Copies 8 pages (2048 bytes)
-;
-copy_chars:
+; Initialize Micro Font (Zero out 512 bytes)
+; ---------------------------------------------------------------------------
+init_chars_micro:
   pha
   txa
   pha
-  ldx #0                ; Index
-
-  ; We use self-modifying code or pointers here.
-  ; Since we are in 6502, let's use a ZP pointer for the source/dest
-  ; to keep it clean, OR just hardcode the base addresses since they are fixed.
-  ; Hardcoding is faster here.
-
-@copy_loop_page_1:
-  lda CHAR_ROM_LOWER, x
-  sta CHAR_RAM, x
-  lda CHAR_ROM_LOWER + $100, x
-  sta CHAR_RAM + $100, x
-  lda CHAR_ROM_LOWER + $200, x
-  sta CHAR_RAM + $200, x
-  lda CHAR_ROM_LOWER + $300, x
-  sta CHAR_RAM + $300, x
-  lda CHAR_ROM_LOWER + $400, x
-  sta CHAR_RAM + $400, x
-  lda CHAR_ROM_LOWER + $500, x
-  sta CHAR_RAM + $500, x
-  lda CHAR_ROM_LOWER + $600, x
-  sta CHAR_RAM + $600, x
-  lda CHAR_ROM_LOWER + $700, x
-  sta CHAR_RAM + $700, x
-
-  dex
-  bne @copy_loop_page_1
-
+  
+  ldx #0
+  lda #0
+@clear_loop:
+  sta CHAR_RAM, x        ; 0-255
+  sta CHAR_RAM + $100, x ; 256-511
+  inx
+  bne @clear_loop
+  
   pla
   tax
   pla
@@ -208,7 +208,7 @@ patch_char:
   ldx #0
 patch_loop:
   lda character_data, x
-  sta CHAR_RAM+$300, x; offset 96*8 = start of PETSCII graphics 
+  sta CHAR_RAM, x       ; Offset 0 (Micro Font: Chars 0-15)
   inx
   cpx #128        ; 16 chars * 8 bytes = 128 bytes
   bne patch_loop
@@ -225,23 +225,32 @@ init_pointers:
   sta ptr_screen
   sta ptr_color
 
-  ; --- 2. CALCULATE SCREEN HIGH BYTE ---
-  lda SCREEN_PAGE
-  sta ptr_screen + 1
-
-calc_color:
-  ; --- 4. CALCULATE COLOR HIGH BYTE ---
-  ; Default to $94 (Lower Half)
-  lda #$94
-  sta ptr_color + 1
-
-  ; Check that same Bit 9 again
-  lda VIC_CR2
-  bpl @done_init       ; If Bit 7 is 0, Color RAM is $9400. Done.
-
-  ; If Bit 7 is 1, Color RAM must be $9600.
-  inc ptr_color + 1   ; $94 -> $95
-  inc ptr_color + 1   ; $95 -> $96
+  .ifdef PRG_BUILD
+      ; --- FORCED UNEXPANDED LAYOUT ---
+      lda #>FORCED_SCREEN
+      sta ptr_screen + 1
+      
+      lda #>FORCED_COLOR
+      sta ptr_color + 1
+  .else
+      ; --- 2. CALCULATE SCREEN HIGH BYTE ---
+      lda SCREEN_PAGE
+      sta ptr_screen + 1
+    
+    calc_color:
+      ; --- 4. CALCULATE COLOR HIGH BYTE ---
+      ; Default to $94 (Lower Half)
+      lda #$94
+      sta ptr_color + 1
+    
+      ; Check that same Bit 9 again
+      lda VIC_CR2
+      bpl @done_init       ; If Bit 7 is 0, Color RAM is $9400. Done.
+    
+      ; If Bit 7 is 1, Color RAM must be $9600.
+      inc ptr_color + 1   ; $94 -> $95
+      inc ptr_color + 1   ; $95 -> $96
+  .endif
 
 @done_init:
   rts
@@ -256,10 +265,12 @@ enable_ram_fonts:
   ; --- Tell the VIC to use RAM fonts ---
   ; The register VIC_CR5 ($9005) holds:
   ; High Nibble: Screen Address (We must preserve this!)
-  ; Low Nibble:  Character Address (We want to set this to 5 for $1400)
+  ; Low Nibble:  Character Address (We want to set this to:
+  ; $E = $1800 (%1110)
+  
   lda VIC_PTR       ; Read current value (e.g., $F0 or $10)
   and #%11110000    ; Mask out the old character pointer (Keep screen bits)
-  ora #%1101        ; $D = $1400
+  ora #%1110        ; $E = $1800
   sta VIC_PTR       ; Update hardware
   pla
   rts

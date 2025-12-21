@@ -31,7 +31,14 @@ TRAIL_SIZE          = 4     ; Bytes per struct
 
 MAX_TRAILS          = SCREEN_WIDTH + 10
 DEFAULT_LENGTH      = 13
-TRAILS_RAM          := $1C00
+; TRAILS_RAM          = $1C00 (NOW LINKER MANAGED)
+
+.export TRAILS_RAM
+
+.segment "TRAIL_DATA"
+TRAILS_RAM: .res 256
+; Pad to 256 bytes if needed, or just let linker manage it.
+; For alignment safety, we reserved 256 bytes in config.
 
 .segment "ZEROPAGE"
 ptr_trail_offset:   .res 2  ; 16-bit offset into screen & color ram for trail
@@ -67,7 +74,7 @@ init_trails:
   sta (ptr_trail), y
   iny
   sta (ptr_trail), y
-
+  
   ; next X
   inx
   cpx #MAX_TRAILS
@@ -285,13 +292,13 @@ update_current_trail:
   ; cmp #32
   ;beq @get_head_char
   and #%00001111    ; Mask to 0-15 (Select one of your 16 custom chars)
-  ora #96           ; Offset to 96 (Start of your patched RAM area)
+  ; Note: NO offset needed for Micro Font (Chars 0-15) as they are at offset 0
 
   ldy #0
   sta (ptr_trail_screen),y
   lda #VIC_WHITE
   sta (ptr_trail_color),y 
-
+  
 @skip_draw_head:
 @erase_old_tail:
   ldy #TRAIL_HEAD
@@ -316,7 +323,7 @@ update_current_trail:
 
   jsr calc_trail_ptrs
 
-  lda #32                   ; Space
+  lda #63                   ; Blank (Micro Font)
   ldy #0
   sta (ptr_trail_screen),y  ; Erase
 

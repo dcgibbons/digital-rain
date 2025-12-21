@@ -1,5 +1,5 @@
 # --- Project Configuration ---
-PROJECT  = vic20_matrix
+PROJECT  = vic20_digital_rain
 BUILD_DIR = build
 SRC      = $(wildcard *.s)
 OBJ      = $(patsubst %.s, $(BUILD_DIR)/%.o, $(SRC))

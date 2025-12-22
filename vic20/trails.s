@@ -281,9 +281,9 @@ update_current_trail:
 
 @get_head_char:
   jsr get_rand
-  and #%00011111        ; mask to 0-31
-  cmp #26
-  bcs @get_head_char    ; if >= 26, retry
+  and #%00111111        ; mask to 0-63
+  cmp #39
+  bcs @get_head_char    ; if >= 39, retry
 
   ldy #0
   sta (ptr_trail_screen),y

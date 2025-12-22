@@ -162,13 +162,23 @@ init_chars_micro:
 ; Patch character map with custom data
 ; ---------------------------------------------------------------------------
 patch_char:
+  ; Copy first 256 bytes
   ldx #0
-patch_loop:
+@patch_loop_1:
   lda character_data, x
-  sta CHAR_RAM, x       ; Offset 0 (Micro Font: Chars 0-25)
+  sta CHAR_RAM, x
   inx
-  cpx #208            ; 26 chars * 8 bytes = 208 bytes
-  bne patch_loop
+  bne @patch_loop_1
+
+  ; Copy remaining bytes (320 total - 256 = 64 bytes)
+  ldx #0
+@patch_loop_2:
+  lda character_data + 256, x
+  sta CHAR_RAM + 256, x
+  inx
+  cpx #64
+  bne @patch_loop_2
+
   rts
 
 ; ---------------------------------------------------------------------------
@@ -308,32 +318,71 @@ character_data:
   ; Looks like: A hollow data packet
   .byte $00, $3C, $24, $24, $24, $3C, $00, $00
 
-  ; Char 16: Mirrored 0
-  .byte $3E, $22, $22, $22, $3E, $00, $00, $00
+  ; Char 16: 0
+  .byte $3C, $42, $42, $42, $42, $42, $3C, $00
 
-  ; Char 17: Mirrored 1
-  .byte $18, $1C, $18, $18, $7E, $00, $00, $00
+  ; Char 17: 1
+  .byte $08, $18, $28, $08, $08, $08, $3E, $00
 
-  ; Char 18: Mirrored 2
-  .byte $3C, $42, $20, $10, $08, $04, $7E, $00
+  ; Char 18: 2
+  .byte $3C, $42, $02, $0C, $30, $40, $7E, $00
 
-  ; Char 19: Mirrored 3
-  .byte $3C, $42, $20, $18, $20, $42, $3C, $00
+  ; Char 19: 3
+  .byte $3C, $42, $02, $1C, $02, $42, $3C, $00
 
-  ; Char 20: Mirrored 4
-  .byte $30, $28, $24, $22, $7E, $20, $20, $00
+  ; Char 20: 4
+  .byte $0C, $14, $24, $44, $7E, $04, $04, $00
 
-  ; Char 21: Mirrored 5
-  .byte $7E, $02, $3E, $40, $40, $42, $3C, $00
+  ; Char 21: 5
+  .byte $7E, $40, $7C, $02, $02, $42, $3C, $00
 
-  ; Char 22: Mirrored 6
-  .byte $3C, $02, $3E, $42, $42, $42, $3C, $00
+  ; Char 22: 6
+  .byte $3C, $40, $7C, $42, $42, $42, $3C, $00
 
-  ; Char 23: Mirrored 7
-  .byte $7E, $20, $10, $08, $04, $04, $04, $00
+  ; Char 23: 7
+  .byte $7E, $02, $04, $08, $10, $20, $20, $00
 
-  ; Char 24: Mirrored 8
+  ; Char 24: 8
   .byte $3C, $42, $42, $3C, $42, $42, $3C, $00
 
-  ; Char 25: Mirrored 9
-  .byte $3C, $42, $42, $42, $7C, $40, $3C, $00
+  ; Char 25: 9
+  .byte $3C, $42, $42, $42, $3E, $02, $3C, $00
+
+  ; Char 26: +
+  .byte $00, $18, $18, $7E, $18, $18, $00, $00
+
+  ; Char 27: -
+  .byte $00, $00, $00, $7E, $00, $00, $00, $00
+
+  ; Char 28: =
+  .byte $00, $00, $7E, $00, $7E, $00, $00, $00
+
+  ; Char 29: (
+  .byte $0C, $18, $30, $30, $30, $18, $0C, $00
+
+  ; Char 30: )
+  .byte $30, $18, $0C, $0C, $0C, $18, $30, $00
+
+  ; Char 31: {
+  .byte $0C, $18, $18, $30, $18, $18, $0C, $00
+
+  ; Char 32: }
+  .byte $30, $18, $18, $0C, $18, $18, $30, $00
+
+  ; Char 33: |
+  .byte $18, $18, $18, $18, $18, $18, $18, $00
+
+  ; Char 34: <
+  .byte $06, $18, $60, $60, $18, $06, $00, $00
+
+  ; Char 35: >
+  .byte $60, $18, $06, $06, $18, $60, $00, $00
+
+  ; Char 36: ?
+  .byte $3C, $42, $04, $08, $10, $00, $10, $00
+
+  ; Char 37: .
+  .byte $00, $00, $00, $00, $00, $18, $18, $00
+
+  ; Char 38: /
+  .byte $02, $06, $0C, $18, $30, $60, $40, $00

@@ -63,7 +63,7 @@ $(BUILD_DIR):
 
 # Compile all assembly sources for CART
 $(BUILD_DIR)/%.o: %.s | $(BUILD_DIR)
-	$(CA65) $(ASFLAGS) -o $@ $<
+	$(CA65) $(ASFLAGS) -D CART_BUILD -o $@ $<
 
 # Compile all assembly sources for PRG (with PRG_BUILD defined)
 $(BUILD_DIR)/%_prg.o: %.s | $(BUILD_DIR)

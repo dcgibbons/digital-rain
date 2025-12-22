@@ -187,24 +187,18 @@ init_pointers:
   sta ptr_screen + 1
     
 calc_color:
-  ; --- DETERMINE COLOR RAM LOCATION ---
-  ; Logic:
-  ; If SCREEN_PAGE ($288) is $1E (Unexpanded or +3K), Color RAM is at $9600.
-  ; If SCREEN_PAGE ($288) is $10 (or anything else usually +8K/16K/24K), Color RAM is at $9400.
-
-  lda SCREEN_PAGE       ; Check where screen is
-  cmp #$1E              ; Is it $1E? ($1E00)
-  bne @set_9400         ; If not $1E (e.g. $10), assume $9400
-
-@set_9600:
-  lda #$96
-  sta ptr_color + 1
-  rts
-
-@set_9400:
+  ; --- 4. CALCULATE COLOR HIGH BYTE ---
+  ; Default to $94 (Lower Half)
   lda #$94
   sta ptr_color + 1
-  
+    
+  ; Check that same Bit 9 again
+  lda VIC_CR2
+  bpl @done_init        ; If Bit 7 is 0, Color RAM is $9400. Done.
+    
+  ; If Bit 7 is 1, Color RAM must be $9600.
+  inc ptr_color + 1     ; $94 -> $95
+  inc ptr_color + 1     ; $95 -> $96
 @done_init:
   rts
   

@@ -151,7 +151,6 @@ create_trail:
   ; Zero (BEQ) -> Tail == 0.
   
   bcc @collision_detected ; Tail < 0
-  beq @collision_detected ; Tail == 0
 
 @next_check:
   inx

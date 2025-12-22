@@ -33,6 +33,13 @@ ASFLAGS = -g -t vic20 -I ./
 # -m:           Generate map file
 CLFLAGS  = -g -t vic20 -C $(CFG_FILE) --start-addr $(START_ADDR) -Wa -I,$(INC_DIR) -m $(MAP) -Ln $(LABELS)
 
+# PRG Flags
+CFG_PRG  = ./vic20-unexpanded.cfg
+PRG      = $(BUILD_DIR)/$(PROJECT).prg
+MAP_PRG  = $(BUILD_DIR)/$(PROJECT)_prg.map
+LBL_PRG  = $(BUILD_DIR)/$(PROJECT)_prg.lbl
+CLFLAGS_PRG = -g -t vic20 -C $(CFG_PRG) -Wa -D,PRG_BUILD -Wa -I,$(INC_DIR) -m $(MAP_PRG) -Ln $(LBL_PRG)
+
 # Cartconv Flags:
 # -t vic20: Target machine
 # -l:       Load address (Required for raw .bin input)
@@ -42,10 +49,11 @@ CCFLAGS  = -t vic20 -l $(START_ADDR)
 # -cartA: Attach file as 8K Block 5 Cartridge
 # -memory none: Ensure unexpanded baseline
 EMUFLAGS = -memory none -cartcrt
+EMUFLAGS_PRG = -memory none
 
 # --- Targets ---
 
-.PHONY: all clean run
+.PHONY: all clean run prg run_prg
 
 all: $(CRT)
 
@@ -53,9 +61,15 @@ all: $(CRT)
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-# Compile all assembly sources
+# Compile all assembly sources for CART
 $(BUILD_DIR)/%.o: %.s | $(BUILD_DIR)
 	$(CA65) $(ASFLAGS) -o $@ $<
+
+# Compile all assembly sources for PRG (with PRG_BUILD defined)
+$(BUILD_DIR)/%_prg.o: %.s | $(BUILD_DIR)
+	$(CA65) $(ASFLAGS) -D PRG_BUILD -o $@ $<
+
+OBJ_PRG = $(patsubst %.s, $(BUILD_DIR)/%_prg.o, $(SRC))
 
 # 1. Assemble & Link to Raw Binary (.bin)
 $(BIN): $(OBJ)
@@ -65,9 +79,18 @@ $(BIN): $(OBJ)
 $(CRT): $(BIN)
 	$(CARTCONV) $(CCFLAGS) -i $< -o $@
 
-# 3. Run
+# 3. Build .prg
+$(PRG): $(OBJ_PRG)
+	$(CL65) $(CLFLAGS_PRG) -o $@ $(OBJ_PRG)
+
+prg: $(PRG)
+
+# 4. Run
 run: $(CRT)
 	$(EMULATOR) $(EMUFLAGS) $(CRT)
+
+run_prg: $(PRG)
+	$(EMULATOR) $(EMUFLAGS_PRG) $(PRG)
 
 clean:
 	rm -rf $(BUILD_DIR)

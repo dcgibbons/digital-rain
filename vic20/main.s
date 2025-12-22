@@ -25,9 +25,40 @@
 ; take over most of the zeropage storage for our own needs.
 ;
 .segment "ZEROPAGE"
-
 frame_count: .res 1     ; current frame count for updates
 
+; ---------------------------------------------------------------------------
+; Header and Startup
+;
+.ifdef PRG_BUILD
+; BASIC Stub for PRG
+; 10 SYS 4109  (4109 = $100D)
+.segment "LOADADDR"
+  .word $1001           ; Load Address
+
+.segment "STARTUP"
+  .word @next_line      ; Next line link
+  .word 10              ; Line number
+  .byte $9E, "4109", 0  ; SYS 4109
+@next_line:
+  .word 0               ; End of BASIC program
+
+.segment "CODE"
+prg_start:
+  sei                   ; Disable interrupts
+  cld                   ; Clear decimal mode
+    
+  ldx #$FF              ; Set stack pointer to $01FF
+  txs
+
+  ; For PRG, we assume the system is already initialized by BASIC.
+  ; We skip RAMTAS/RESTOR to avoid memory clearing.
+  ; We proceed directly to main initialization.
+
+  ; fall-through to the main code
+  ; jmp main            ; Jump to main code
+
+.else
 ; ---------------------------------------------------------------------------
 ; Cartridge Header - VIC-20 Kernal looks at $A000 for this signature. If
 ; found, control is transferred directly to the cold start vector address
@@ -35,9 +66,9 @@ frame_count: .res 1     ; current frame count for updates
 ;
 .segment "CARTHDR"
 cartridge_header:
-.word cold_start            ; Cold start vector (2 bytes, little-endian)
-.word warm_start            ; Warm start vector (2 bytes, little-endian)
-.byte $41,$30,$C3,$C2,$CD   ; "A0" + reversed "CBM" signature (5 bytes)
+  .word cold_start            ; Cold start vector (2 bytes, little-endian)
+  .word warm_start            ; Warm start vector (2 bytes, little-endian)
+  .byte $41,$30,$C3,$C2,$CD   ; "A0" + reversed "CBM" signature (5 bytes)
 
 .segment "CODE"
 cold_start:
@@ -56,7 +87,8 @@ warm_start:
   cli                   ; Re-enable interrupts
 
   ; fall-through to the main code
-  ; jmp main              ; Jump to main code
+  ; jmp main            ; Jump to main code
+.endif
 
 ; ---------------------------------------------------------------------------
 ; Main Program

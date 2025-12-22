@@ -24,6 +24,11 @@ make
 This will compile the assembly sources with ca65 and link them into a runnable
 cartridge binary.
 
+3. If you wish to build the `.prg` format version, then use:
+```
+make prg
+```
+
 ## Running in VICE
 
 1. Run the binary with the VICE VIC-20 emualtor (assumes `xvic` is in your
@@ -31,6 +36,18 @@ cartridge binary.
 ```
 make run
 ```
+
+Alternatively, you can run the `.prg` version with:
+```
+make run_prg
+```
+
+## Running on Real Hardware
+
+You can use the `.prg` file directly with a SD2IEC drive emulator and load it
+on real hardware. This particular implementation requires an unexpanded
+VIC-20 memory configuration, so configure your hardware for the default 5KB
+of RAM.
 
 ## Screenshots
 

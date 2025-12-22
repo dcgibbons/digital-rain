@@ -5,13 +5,6 @@
 
 .export init_video
 .export wait_for_frame
-; .export init_pointers
-; .export detect_video_type
-; .export clear_color_ram
-; .export clear_screen
-; .export copy_chars
-; .export patch_char
-; .export enable_ram_fonts
 
 ; ---------------------------------------------------------------------------
 ; Includes from the CC65 package
@@ -25,72 +18,34 @@
 ;
 .include "macros.inc"
 .include "globals.inc"
+.include "vic_colors.inc"
 
 ; ---------------------------------------------------------------------------
 ; Screen Constants
 ;
-SCREEN_ROWS         = 23        ; Total height
-SCREEN_WIDTH        = 22        ; Total width
-
-CHAR_ROM            = $8000     ; Standard Character ROM
-CHAR_ROM_LOWER      = $8800     ; Lowercase Chafacter ROM
-
-; ---------------------------------------------------------------------------
-; MEMORY CONFIGURATION
-; ---------------------------------------------------------------------------
-; Unified Font Strategy: Micro Font at $1800
-; Code: $1000-$17FF (PRG) or $A000 (Cart)
-; Font: $1800 (1KB reserved, 512b used)
-; Trails: $1C00 (256b)
-; Screen: $1E00 (Unexpanded/Forced) or $1000/+8K (Adaptive)
-
-; CHAR_RAM        = $1800     ; 1024 bytes allocated, we use 512 (NOW LINKER MANAGED)
-
-.export CHAR_RAM
-
-.segment "FONT_DATA"
-CHAR_RAM:   .res 512
-
-.ifdef PRG_BUILD
-    FORCED_SCREEN   = $1E00
-    FORCED_COLOR    = $9600
-.endif
+SCREEN_ROWS    = 23     ; Total height
+SCREEN_WIDTH   = 22     ; Total width
 
 ; ---------------------------------------------------------------------------
 ; VIC-20 Kernal Memory Locations not defined above
 ;
-SCREEN_PAGE         := $0288    ; Location where the page # of the screen
-                                ; memory is stored by the Kerna
-                                
+SCREEN_PAGE := $0288    ; Location where the page # of the screen
+                        ; memory is stored by the Kerna
+SHIFT_MODE  := $0291    ; Shift-mode switch, 0 enabled, 128 = locked
+VIC_PTR     = VIC_CR5   ; VIC RAM font location pointer
+VIC_RASTER  = VIC_CR4   ; VIC control register for the current raster
+
 ; ---------------------------------------------------------------------------
-; Additional VIC IC constants not defined above
+; Memory Buffer for our custom character font
 ;
-VIC_COLOR_NORMAL    = $08       ; Bitmask for setting standard colors
-VIC_BLACK           = $0
-VIC_WHITE           = $1
-VIC_RED             = $2
-VIC_CYAN            = $3
-VIC_PURPLE          = $4
-VIC_GREEN           = $5
-VIC_BLUE            = $6
-VIC_YELLOW          = $7
-; extended colors for auxiliary and screen
-VIC_ORANGE          = $8
-VIC_LIGHT_ORANGE    = $9
-VIC_PINK            = $A
-VIC_LIGHT_CYAN      = $B
-VIC_LIGHT_PURPLE    = $C
-VIC_LIGHT_GREEN     = $D
-VIC_LIGHT_BLUE      = $E
-VIC_LIGHT_YELLOW    = $F
-VIC_PTR             = VIC_CR5
-VIC_RASTER          = VIC_CR4   ; VIC control register for the current raster
+.segment "FONT_DATA"
+CHAR_RAM:   .res 512
 
 .segment "CODE"
-
+; ---------------------------------------------------------------------------
+; Initializes the video memory and fonts for this application.
+;
 init_video:
-  pha
-
   jsr init_pointers
   jsr detect_video_type
   jsr clear_color_ram
@@ -107,19 +62,18 @@ init_video:
   lda #VIC_GREEN
   sta CHARCOLOR
 
-  pla
   rts
 
 ; ---------------------------------------------------------------------------
 ; Clears Screen RAM
 ;
 clear_screen:
-  lda ptr_screen + 1        ; save high byte of ptr_screen to restore after
+  lda ptr_screen + 1    ; save high byte of ptr_screen to restore after
   pha
 
-  lda #63                   ; Blank Character (Micro Font Space)
-  ldx #2                    ; 2 pages worth
-  ldy #0                    ; byte offset within page
+  lda #63               ; Blank Character (Micro Font Space)
+  ldx #2                ; 2 pages worth
+  ldy #0                ; byte offset within page
 @clear_screen_outer:
 
 @clear_screen_inner:
@@ -132,7 +86,7 @@ clear_screen:
   dex
   bne @clear_screen_outer
 
-  pla                     ; restore high byte of ptr_screen
+  pla                   ; restore high byte of ptr_screen
   sta ptr_screen + 1
   rts
 
@@ -142,13 +96,16 @@ clear_screen:
 detect_video_type:
   pha
   lda VIC_CR2
-  and #%10000000          ; bit 7: 0 = NTSC, 1 = PAL
+  and #%10000000        ; bit 7: 0 = NTSC, 1 = PAL
   bne @set_pal
+
+  ; Aim for 1/12th of a second updates regardless if NTSC or PAL
 @set_ntsc:
-  lda #5
+  lda #5                ; 60 * (1/12) ~= 5
   jmp @set_target
 @set_pal:
-  lda #4
+  lda #4                ; 50 * (1/12) ~= 4
+
 @set_target:
   sta frame_target
   pla
@@ -158,12 +115,12 @@ detect_video_type:
 ; Clears Color Ram
 ;
 clear_color_ram:
-  lda ptr_color + 1       ; save high byte of ptr_color to restore after
+  lda ptr_color + 1     ; save high byte of ptr_color to restore after
   pha
 
   lda #VIC_BLACK
-  ldx #2                  ; 2 pages worth
-  ldy #0                  ; byte offset within page
+  ldx #2                ; 2 pages worth
+  ldy #0                ; byte offset within page
 @clear_color_loop_outer:
 
 @clear_color_loop_inner:
@@ -176,7 +133,7 @@ clear_color_ram:
   dex
   bne @clear_color_loop_outer
 
-  pla                     ; restore high byte of ptr_color
+  pla                   ; restore high byte of ptr_color
   sta ptr_color + 1
   rts
  
@@ -210,7 +167,7 @@ patch_loop:
   lda character_data, x
   sta CHAR_RAM, x       ; Offset 0 (Micro Font: Chars 0-25)
   inx
-  cpx #208        ; 26 chars * 8 bytes = 208 bytes
+  cpx #208            ; 26 chars * 8 bytes = 208 bytes
   bne patch_loop
   rts
 
@@ -225,42 +182,34 @@ init_pointers:
   sta ptr_screen
   sta ptr_color
 
-  .ifdef PRG_BUILD
-      ; --- FORCED UNEXPANDED LAYOUT ---
-      lda #>FORCED_SCREEN
-      sta ptr_screen + 1
-      
-      lda #>FORCED_COLOR
-      sta ptr_color + 1
-  .else
-      ; --- 2. CALCULATE SCREEN HIGH BYTE ---
-      lda SCREEN_PAGE
-      sta ptr_screen + 1
+  ; --- 2. CALCULATE SCREEN HIGH BYTE ---
+  lda SCREEN_PAGE
+  sta ptr_screen + 1
     
-    calc_color:
-      ; --- 4. CALCULATE COLOR HIGH BYTE ---
-      ; Default to $94 (Lower Half)
-      lda #$94
-      sta ptr_color + 1
+calc_color:
+  ; --- 4. CALCULATE COLOR HIGH BYTE ---
+  ; Default to $94 (Lower Half)
+  lda #$94
+  sta ptr_color + 1
     
-      ; Check that same Bit 9 again
-      lda VIC_CR2
-      bpl @done_init       ; If Bit 7 is 0, Color RAM is $9400. Done.
+  ; Check that same Bit 9 again
+  lda VIC_CR2
+  bpl @done_init        ; If Bit 7 is 0, Color RAM is $9400. Done.
     
-      ; If Bit 7 is 1, Color RAM must be $9600.
-      inc ptr_color + 1   ; $94 -> $95
-      inc ptr_color + 1   ; $95 -> $96
-  .endif
+  ; If Bit 7 is 1, Color RAM must be $9600.
+  inc ptr_color + 1     ; $94 -> $95
+  inc ptr_color + 1     ; $95 -> $96
 
 @done_init:
   rts
   
 enable_ram_fonts:
   pha
+
   ; Address $0291 (657) controls the charset switching logic.
   ; Setting Bit 7 ($80) tells the OS: "Do not touch the charset pointer."
-  lda #$80          ; 128
-  sta $0291         ; Lock it!
+  lda #$80
+  sta SHIFT_MODE
 
   ; --- Tell the VIC to use RAM fonts ---
   ; The register VIC_CR5 ($9005) holds:
@@ -268,10 +217,11 @@ enable_ram_fonts:
   ; Low Nibble:  Character Address (We want to set this to:
   ; $E = $1800 (%1110)
   
-  lda VIC_PTR       ; Read current value (e.g., $F0 or $10)
-  and #%11110000    ; Mask out the old character pointer (Keep screen bits)
-  ora #%1110        ; $E = $1800
-  sta VIC_PTR       ; Update hardware
+  lda VIC_PTR           ; Read current value (e.g., $F0 or $10)
+  and #%11110000        ; Mask out the old character pointer (Keep screen bits)
+  ora #%1110            ; $E = $1800
+  sta VIC_PTR           ; Update hardware
+
   pla
   rts
   

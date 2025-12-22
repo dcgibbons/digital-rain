@@ -26,7 +26,7 @@
 ;
 .segment "ZEROPAGE"
 
-frame_count:        .res 1  ; current frame count for updates
+frame_count: .res 1     ; current frame count for updates
 
 ; ---------------------------------------------------------------------------
 ; Cartridge Header - VIC-20 Kernal looks at $A000 for this signature. If
@@ -42,19 +42,21 @@ cartridge_header:
 .segment "CODE"
 cold_start:
 warm_start:
-  sei               ; Disable interrupts
-  cld               ; Clear decimal mode
+  sei                   ; Disable interrupts
+  cld                   ; Clear decimal mode
 
-  ldx #$FF          ; Set stack pointer to $01FF
+  ldx #$FF              ; Set stack pointer to $01FF
   txs
 
-  jsr RAMTAS        ; RAMTAS: Initialize RAM, test memory, set pointers
-  jsr RESTOR        ; RESTOR: Restore default KERNAL vectors
-  jsr IOINIT        ; IOINIT: Initialize I/O devices (CIA, VIA, etc.)
-  jsr CINT          ; CINT: Initialize screen editor and VIC chip
+  jsr RAMTAS            ; RAMTAS: Initialize RAM, test memory, set pointers
+  jsr RESTOR            ; RESTOR: Restore default KERNAL vectors
+  jsr IOINIT            ; IOINIT: Initialize I/O devices (CIA, VIA, etc.)
+  jsr CINT              ; CINT: Initialize screen editor and VIC chip
 
-  cli               ; Re-enable interrupts
-  jmp main          ; Jump to main code
+  cli                   ; Re-enable interrupts
+
+  ; fall-through to the main code
+  ; jmp main              ; Jump to main code
 
 ; ---------------------------------------------------------------------------
 ; Main Program
@@ -64,6 +66,9 @@ main:
   jsr init_trails   ; setup trails
   jsr init_video    ; setup video
 
+  ; The main loop waits for the vertical raster (either 60 / 50 Hz) and then
+  ; increments a frame counter. If the frame counter is equal to our frame
+  ; target - a global set by screen.s - then we do a trails update.
   lda #0
   sta frame_count
 @main_loop:
@@ -76,7 +81,7 @@ main:
   lda #0
   sta frame_count
 
-  ; see if any new trails need to be created
+  ; create any new trails if needed
   jsr create_trail
 
 @do_updates:
@@ -84,9 +89,3 @@ main:
   jsr update_trails
 @no_update:
   jmp @main_loop
-
-; ---------------------------------------------------------------------------
-; Updates the current frame
-;
-update_frame:
-  rts

@@ -19,36 +19,30 @@
 ; ---------------------------------------------------------------------------
 ; Screen Constants
 ;
-SCREEN_ROWS         = 23    ; Total height
-SCREEN_WIDTH        = 22    ; Total width
+SCREEN_ROWS     = 23    ; Total height
+SCREEN_WIDTH    = 22    ; Total width
 
 ; -- structure to represent a trail:
-TRAIL_COLUMN        = 0     ; byte
-TRAIL_HEAD          = 1     ; byte
-TRAIL_LENGTH        = 2     ; byte
-TRAIL_ACTIVE        = 3     ; Byte
-TRAIL_SIZE          = 4     ; Bytes per struct
+TRAIL_COLUMN    = 0     ; byte
+TRAIL_HEAD      = 1     ; byte
+TRAIL_LENGTH    = 2     ; byte
+TRAIL_ACTIVE    = 3     ; Byte
+TRAIL_SIZE      = 4     ; Bytes per struct
 
-MAX_TRAILS          = SCREEN_WIDTH + 10
-DEFAULT_LENGTH      = 13
-; TRAILS_RAM          = $1C00 (NOW LINKER MANAGED)
-
-.export TRAILS_RAM
+MAX_TRAILS      = SCREEN_WIDTH + 10
+DEFAULT_LENGTH  = 13
 
 .segment "TRAIL_DATA"
 TRAILS_RAM: .res 256
-; Pad to 256 bytes if needed, or just let linker manage it.
-; For alignment safety, we reserved 256 bytes in config.
 
 .segment "ZEROPAGE"
-ptr_trail_offset:   .res 2  ; 16-bit offset into screen & color ram for trail
-ptr_trail_screen:   .res 2  ; pointer to current trail drawing location
-ptr_trail_color:    .res 2  ; pointer to curent trail color location
-ptr_trail:          .res 2  ; pointer to current trail
-temp:               .res 2  ; temporary work storage
+ptr_trail_offset: .res 2  ; 16-bit offset into screen & color ram for trail
+ptr_trail_screen: .res 2  ; pointer to current trail drawing location
+ptr_trail_color:  .res 2  ; pointer to curent trail color location
+ptr_trail:        .res 2  ; pointer to current trail
+temp:             .res 2  ; temporary work storage
 
 .segment "CODE"
-
 ; ---------------------------------------------------------------------------
 ; initializes the trails data structures
 ;
@@ -59,7 +53,7 @@ init_trails:
   tya
   pha
   
-  ; TODO - replace this with a generic memset-like call to zero out the block
+  ; TODO - replace this with a generic memset-like call to zero out the block?
   ldx #0
 @loop:
   txa 
@@ -115,15 +109,15 @@ create_trail:
 @found_inactive_trail:
 @pick_random:
   jsr get_rand
-  and #%00011111    ; mask to 0-31
+  and #%00011111        ; mask to 0-31
   cmp #SCREEN_WIDTH
-  bcs @pick_random  ; try again if out of range
+  bcs @pick_random      ; try again if out of range
 
   ; --- Collision Check ---
-  sta temp          ; save candidate column
-  pha               ; save A (column)
+  sta temp              ; save candidate column
+  pha                   ; save A (column)
   txa
-  pha               ; save X (current slot index)
+  pha                   ; save X (current slot index)
 
   ldx #0
 @collision_loop:
@@ -132,12 +126,12 @@ create_trail:
   
   ldy #TRAIL_ACTIVE
   lda (ptr_trail_color), y
-  beq @next_check   ; ignore inactive trails
+  beq @next_check       ; ignore inactive trails
   
   ldy #TRAIL_COLUMN
   lda (ptr_trail_color), y
   cmp temp
-  bne @next_check   ; ignore different columns
+  bne @next_check       ; ignore different columns
 
   ; Same Column - Check for Overlap
   ; New Trail spawning at Head=0.
@@ -256,7 +250,7 @@ update_current_trail:
   bcs @skip_green_body  ; if target off-screen (rolled off bottom), skip!
   
   tay
-  pha               ; save row
+  pha                   ; save row
   ldy #TRAIL_COLUMN
   lda (ptr_trail), y 
   tax
@@ -288,9 +282,9 @@ update_current_trail:
 
 @get_head_char:
   jsr get_rand
-  and #%00011111    ; mask to 0-31
+  and #%00011111        ; mask to 0-31
   cmp #26
-  bcs @get_head_char ; if >= 26, retry
+  bcs @get_head_char    ; if >= 26, retry
 
   ldy #0
   sta (ptr_trail_screen),y
@@ -303,25 +297,25 @@ update_current_trail:
   lda (ptr_trail), y
   sec
   ldy #TRAIL_LENGTH
-  sbc (ptr_trail), y        ; A = Head - Length
+  sbc (ptr_trail), y    ; A = Head - Length
 
   ; Bounds check the tail
-  bmi @skip_erase           ; If Tail < 0 (Underflow), it's not on screen yet
+  bmi @skip_erase       ; If Tail < 0 (Underflow), it's not on screen yet
   cmp #SCREEN_ROWS
-  bcs @skip_erase           ; If Tail >= 23, it's already off screen
+  bcs @skip_erase       ; If Tail >= 23, it's already off screen
 
   ; Setup Y=Row, X=Column
-  tay                       ; Y = Tail Row
+  tay                   ; Y = Tail Row
   pha
   ldy #TRAIL_COLUMN
   lda (ptr_trail), y
-  tax                       ; X = Column
+  tax                   ; X = Column
   pla
   tay
 
   jsr calc_trail_ptrs
 
-  lda #63                   ; Blank (Micro Font)
+  lda #63               ; Blank (Micro Font)
   ldy #0
   sta (ptr_trail_screen),y  ; Erase
 
@@ -340,14 +334,14 @@ update_current_trail:
   ; If Tail >= SCREEN_ROWS, the trail is finished.
   
   ldy #TRAIL_HEAD
-  lda (ptr_trail), y        ; Load Head
+  lda (ptr_trail), y    ; Load Head
   sec
   ldy #TRAIL_LENGTH
-  sbc (ptr_trail), y        ; Calculate Tail
+  sbc (ptr_trail), y    ; Calculate Tail
   
-  bcc @done                 ; If borrow (Tail < 0), keep alive
+  bcc @done             ; If borrow (Tail < 0), keep alive
   cmp #SCREEN_ROWS
-  bcc @done                 ; If Tail < 23, keep alive
+  bcc @done             ; If Tail < 23, keep alive
 
   ; Kill the trail
   ldy #TRAIL_ACTIVE

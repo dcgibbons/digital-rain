@@ -10,10 +10,9 @@ VIA1_T1_LOW_COUNTER := $9114
 DEFAULT_SEED        := 42
 
 .segment "ZEROPAGE"
-rng_seed:           .res 1  ; seed for rng
+rng_seed: .res 1        ; seed for rng
 
 .segment "CODE"
-
 ; ---------------------------------------------------------------------------
 ; initialize the pseudo-random number generator with a seed
 ;

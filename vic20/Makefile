@@ -34,7 +34,7 @@ ASFLAGS = -g -t vic20 -I ./
 CLFLAGS  = -g -t vic20 -C $(CFG_FILE) --start-addr $(START_ADDR) -Wa -I,$(INC_DIR) -m $(MAP) -Ln $(LABELS)
 
 # PRG Flags
-CFG_PRG  = ./vic20-unexpanded.cfg
+CFG_PRG  = ./vic20-universal.cfg
 PRG      = $(BUILD_DIR)/$(PROJECT).prg
 MAP_PRG  = $(BUILD_DIR)/$(PROJECT)_prg.map
 LBL_PRG  = $(BUILD_DIR)/$(PROJECT)_prg.lbl

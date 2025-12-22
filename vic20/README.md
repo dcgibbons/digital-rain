@@ -3,6 +3,8 @@
 This project is a "digital rain" effect demo (created for the movie The Matrix)
 targetted for the Commodore VIC-20.
 
+There are two build options
+
 ## Requirements for Building
 
 * cc65 installed (includes ca65 assembler).
@@ -44,12 +46,24 @@ make run_prg
 
 ## Running on Real Hardware
 
-You can use the `.prg` file directly with a SD2IEC drive emulator and load it
-on real hardware. This particular implementation requires an unexpanded
-VIC-20 memory configuration, so configure your hardware for the default 5KB
-of RAM.
+## Running on Real Hardware / Universal PRG
+You can use the `.prg` file (`vic20_digital_rain.prg`) with an SD2IEC or other
+loader.
+
+**This file is a Universal Relocatable Binary.** It supports:
+- **Unexpanded VIC-20** (5KB RAM)
+- **+3K / +8K / +16K / +24K Expansion**
+
+To run it, you **MUST use Relocatable Loading** (`,8`):
+```basic
+LOAD "*",8
+RUN
+```
+**DO NOT use `,8,1`**. The program relies on the BASIC loader to place it in
+the correct memory location for your specific hardware configuration. A
+built-in relocator will then move the machine code to a safe execution area
+(`$1300`) automatically.
 
 ## Screenshots
 
 ![Demo Screenshot](demo.gif)
-

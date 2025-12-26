@@ -10,84 +10,47 @@
 .include "cbm_kernal.inc"
 .include "c64.inc"
 
-DEFAULT_IRQ_HANDLER := $EA31
+; ---------------------------------------------------------------------------
+; Local Includes
+;
+.include "globals.inc"
+.include "rand.inc"
+.include "screen.inc"
+.include "trails.inc"
+.include "vic-ii_colors.inc"
+
+SCREEN_RAM          := $0400
+COLOR_RAM           := $D800
 
 .segment  "CODE"
 .org      $080E
 main:
-  jsr init_raster
+  sei                   ; disable interrupts to prevent ZP corruption
+  jsr init_rng          ; initialize random number generator
+  jsr init_trails       ; setup trails
+  jsr init_video        ; setup video
 
-  ; PRINT "HELLO WORLD" (Just to prove it works!)
-  ldy #0
-@print_msg:
-  lda msg_hello, y
-  beq @done
-  jsr CHROUT
-  iny
-  jmp @print_msg
-
-@done:
-
-main_loop:
-  jmp main_loop
-
-init_raster:
-  sei                   ; disable interrupts
-
-  ldy #%01111111
-  sta CIA1_ICR          ; turn off CIA 1 interrupts
-  sta CIA2_ICR          ; turn off CIA 2 interrupts
-  lda CIA1_ICR          ; acknowledge any pending CIA 1 interrupts
-  lda CIA2_ICR          ; acknowledge any pending CIA 2 interrupts
-
-  lda #$01
-  sta VIC_IMR           ; enable raster interrupt signals from VIC-II
-
-  lda #$fa              ; set trigger line to 250 (bottom of screen)
-  sta VIC_HLINE
-
-  lda VIC_CTRL1         ; clear the high bit of the raster line
-  ldy #%01111111
-  sta VIC_CTRL1 
-
-  ; set IRQ handler address
-  lda #<irq_handler
-  sta IRQVec
-  lda #>irq_handler
-  sta IRQVec+1
-
-  cli
-  rts
-
-irq_handler:
-  ; acknowledge the interrupt
-  lda #$01
-  sta VIC_IRR
-
-  jsr animate_frame
-
-  jmp DEFAULT_IRQ_HANDLER
-
-animate_frame:
-  inc frame_count
-
+  ; The main loop waits for the vertical raster (either 60 / 50 Hz) and then
+  ; increments a frame counter. If the frame counter is equal to our frame
+  ; target - a global set by screen.s - then we do a trails update.
   lda #0
-  ldx #0
-  ldy #0
-  clc
-  jsr PLOT
-
+  sta frame_count
+@main_loop:
+  jsr wait_for_frame
+  inc frame_count
   lda frame_count
-  jsr CHROUT
+  cmp frame_target
+  bne @no_update
 
-  rts
+  ; reset the frame counter 
+  lda #0
+  sta frame_count
 
-.segment "ZEROPAGE"
-  frame_count: .res 1
+  jsr create_trail
+  jsr update_trails
 
-; --- Read-only DATA ---
-.segment "RODATA"
+@no_update:
+  jmp @main_loop
 
-msg_hello:
-  scrcode "hello world!!1! aaaa"
-  .byte 0
+.segment "DATA"
+frame_count: .byte $00

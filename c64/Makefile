@@ -11,6 +11,7 @@ LABELS   = $(BUILD_DIR)/$(PROJECT).lbl
 # --- Paths ---
 INC_DIR  = ./
 CFG_FILE = c64-asm.cfg
+START_ADDR = 2062
 
 # --- Tools ---
 CA65     = ca65
@@ -39,7 +40,7 @@ CLFLAGS_PRG = -g -t c64 -C $(CFG_PRG) -Wa -D,PRG_BUILD -Wa -I,$(INC_DIR) -m $(MA
 # Cartconv Flags:
 # -t c64: Target machine
 # -l:     Load address (Required for raw .bin input)
-CCFLAGS  = -t c64 -l $(START_ADDR)
+CCFLAGS  = -t normal -l $(START_ADDR)
 
 # Emulator Flags:
 # -cartA: Attach file as 8K Block 5 Cartridge

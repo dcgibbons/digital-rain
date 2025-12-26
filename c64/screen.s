@@ -18,9 +18,7 @@
 .include "globals.inc"
 .include "vic-ii_colors.inc"
 
-DEFAULT_IRQ_HANDLER := $EA31
 SCREEN_RAM          := $0400
-COLOR_RAM           := $D800
 CUSTOM_CHARSET_ADDR := $3000
 
 .segment "CODE"
@@ -143,85 +141,6 @@ wait_for_frame:
 
   pla
   rts
-
-init_raster:
-  sei                   ; disable interrupts
-
-  ldy #%01111111
-  sta CIA1_ICR          ; turn off CIA 1 interrupts
-  sta CIA2_ICR          ; turn off CIA 2 interrupts
-  lda CIA1_ICR          ; acknowledge any pending CIA 1 interrupts
-  lda CIA2_ICR          ; acknowledge any pending CIA 2 interrupts
-
-  lda #$01
-  sta VIC_IMR           ; enable raster interrupt signals from VIC-II
-
-  lda #$fa              ; set trigger line to 250 (bottom of screen)
-  sta VIC_HLINE
-
-  lda VIC_CTRL1         ; clear the high bit of the raster line
-  ldy #%01111111
-  sta VIC_CTRL1 
-
-  ; set IRQ handler address
-  lda #<irq_handler
-  sta IRQVec
-  lda #>irq_handler
-  sta IRQVec+1
-
-  ;cli
-  rts
-
-irq_handler:
-  ; acknowledge the interrupt
-  lda #$01
-  sta VIC_IRR
-
-  jsr animate_frame
-
-  jmp DEFAULT_IRQ_HANDLER
-
-animate_frame:
-  ;inc frame_count
-  rts
-
-  ; lda #0
-  ; ldx #0
-  ; ldy scroll_y
-  ; clc
-  ; jsr PLOT
-
-  ; lda frame_count
-  ; jsr CHROUT
-
-  ; ; jsr do_scroll
-  ; rts
-
-; do_scroll:
-;   inc scroll_y
-;   lda scroll_y
-;   cmp #8                ; have we shifted 8 pixels?
-;   bne @apply_scroll
-
-;   ; reset cycle (course scroll)
-;   lda #0
-;   sta scroll_y
-;   jsr shift_screen_down
-;   jsr draw_new_top_row
-
-; @apply_scroll:
-;   lda VIC_CTRL1
-;   and #%11111000
-;   ora scroll_y
-;   sta VIC_CTRL1
-;   rts
-
-; shift_screen_down:
-;   rts
-
-; draw_new_top_row:
-; rts
-
 
 .segment "RODATA"
 ; ===========================================================================

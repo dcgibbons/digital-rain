@@ -31,16 +31,16 @@ MAX_TRAILS      = XSIZE + 10
 DEFAULT_LENGTH  = 13
 
 .segment "DATA"
-TRAILS_RAM: .res 256
-temp:       .res 2
+trails_ram:       .res 256
+ptr_trail_offset: .res 2
+temp:             .res 2
 
 ; ---------------------------------------------------------------------------
 ; Zeropage storage
 ;
-ptr_trail_offset := $FB     ; free zero page space
-ptr_trail_screen := $FD     ; free zero page space
-ptr_trail_color  := $22     ; utility pointer area for the BASIC interpreter
-ptr_trail        := $24     ; utility pointer area for the BASIC interpreter
+ptr_trail_screen := $FB     ; unused zero page space
+ptr_trail_color  := $FD     ; unused zero page space
+ptr_trail        := $02     ; unused zero page space
 
 .segment "CODE"
 ; ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ init_trails:
   ldx #0
 @loop:
   txa 
-  calc_trail_ptr ptr_trail, TRAILS_RAM
+  calc_trail_ptr ptr_trail, trails_ram
   
   ldy #0
   lda #0
@@ -94,7 +94,7 @@ create_trail:
   ldx #0
 @loop:
   txa  
-  calc_trail_ptr ptr_trail, TRAILS_RAM 
+  calc_trail_ptr ptr_trail, trails_ram 
   
   ldy #TRAIL_ACTIVE
   lda (ptr_trail), y
@@ -129,7 +129,7 @@ create_trail:
 @collision_loop:
   ; inc $D020             ; Visual Heartbeat REMOVED
   txa
-  calc_trail_ptr ptr_trail_color, TRAILS_RAM ; Use ptr_trail_color as temp pointer
+  calc_trail_ptr ptr_trail_color, trails_ram ; Use ptr_trail_color as temp pointer
   
   ldy #TRAIL_ACTIVE
   lda (ptr_trail_color), y
@@ -203,7 +203,7 @@ update_trails:
   ldx #0
 @loop:
   txa  
-  calc_trail_ptr ptr_trail, TRAILS_RAM 
+  calc_trail_ptr ptr_trail, trails_ram 
   
   ldy #TRAIL_ACTIVE
   lda (ptr_trail), y

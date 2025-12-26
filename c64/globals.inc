@@ -6,6 +6,6 @@
 .ifndef ::GLOBALS_INC_
 ::GLOBALS_INC = 1
 
-.globalzp frame_target
+.import frame_target
 
 .endif

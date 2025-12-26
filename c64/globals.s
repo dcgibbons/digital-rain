@@ -3,6 +3,7 @@
 ; Digital Rain on the Commodore 64
 ;
 
-.include "globals.inc"
+.export frame_target
 
-frame_target := $02     ; unused zeropage byte
+.segment "DATA"
+frame_target: .res 1

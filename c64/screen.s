@@ -21,6 +21,7 @@
 DEFAULT_IRQ_HANDLER := $EA31
 SCREEN_RAM          := $0400
 COLOR_RAM           := $D800
+CUSTOM_CHARSET_ADDR := $3000
 
 .segment "CODE"
 ; ---------------------------------------------------------------------------
@@ -28,8 +29,8 @@ COLOR_RAM           := $D800
 ;
 init_video:
   jsr detect_video_type
-  jsr clear_color_ram
   jsr clear_screen
+  jsr setup_custom_font
 
   ; set background & border color
   lda #VIC_BLACK
@@ -41,6 +42,49 @@ init_video:
   lda #VIC_GREEN
   sta CHARCOLOR
 
+  ; Configure VIC-II Memory Pointers in $D018
+  ; Screen RAM: $0400 (Top 4 bits = 1 -> $10)
+  ; Charset: CUSTOM_CHARSET_ADDR ($3000)
+  ; Formula: (Screen / $0400) << 4 | (Charset / $0800) << 1
+  ;
+  ; Calculating Charset part:
+  ; $3000 / $0800 = 6. 6 << 1 = 12 ($0C).
+  ; $10 | $0C = $1C.
+  
+  lda #$1C              ; Screen $0400, Charset $3000
+  sta VIC_VIDEO_ADR     ; Store in VIC Memory Control Register
+
+  rts
+
+; ---------------------------------------------------------------------------
+; Sets up the custom font by copying from RODATA to RAM
+;
+setup_custom_font:
+  ; 1. Clear the font area (2KB) to be safe (blank characters)
+  lda #0
+  tax
+@clear_loop_1:
+  sta CUSTOM_CHARSET_ADDR, x
+  sta CUSTOM_CHARSET_ADDR + $0100, x
+  sta CUSTOM_CHARSET_ADDR + $0200, x
+  sta CUSTOM_CHARSET_ADDR + $0300, x
+  sta CUSTOM_CHARSET_ADDR + $0400, x
+  sta CUSTOM_CHARSET_ADDR + $0500, x
+  sta CUSTOM_CHARSET_ADDR + $0600, x
+  sta CUSTOM_CHARSET_ADDR + $0700, x
+  inx
+  bne @clear_loop_1
+
+  ; 2. Copy defined characters
+  ldx #0
+@copy_loop_1:
+  lda character_data, x
+  sta CUSTOM_CHARSET_ADDR, x
+  lda character_data + 256, x       ; Handle overflow for > 256 bytes
+  sta CUSTOM_CHARSET_ADDR + 256, x
+  inx
+  bne @copy_loop_1 
+  
   rts
 
 ; ---------------------------------------------------------------------------
@@ -64,12 +108,6 @@ clear_screen:
   pla
   tax
   pla
-  rts
-
-; ---------------------------------------------------------------------------
-; Clears Color Ram
-;
-clear_color_ram:
   rts
 
 ; ---------------------------------------------------------------------------
@@ -183,3 +221,147 @@ animate_frame:
 
 ; draw_new_top_row:
 ; rts
+
+
+.segment "RODATA"
+; ===========================================================================
+; Glyph Data
+; Style: Mirrored Katakana & Cryptic Glyphs
+; Format: 8 bytes per character
+; ===========================================================================
+character_data:
+  ; Char 0: Mirrored TE (テ)
+  ; Looks like: Glitchy T
+  .byte $7C, $00, $7C, $10, $10, $08, $04, $00
+
+  ; Char 1: Mirrored KU (ク)
+  ; Looks like: A cybernetic '7'
+  .byte $38, $0C, $04, $04, $06, $0C, $38, $00
+
+  ; Char 2: Mirrored SU (ス)
+  ; Looks like: A running man or lightning bolt
+  .byte $7E, $02, $04, $08, $10, $24, $18, $00
+
+  ; Char 3: Mirrored MU (ム)
+  ; Looks like: A geometric triangle/arrow
+  .byte $08, $14, $22, $41, $40, $22, $1C, $00
+
+  ; Char 4: Mirrored KO (コ)
+  ; Looks like: A hard bracket or C
+  .byte $3E, $20, $20, $20, $20, $20, $3E, $00
+
+  ; Char 5: Mirrored RA (ラ)
+  ; Looks like: A top connector with a hanging wire
+  .byte $3E, $02, $04, $00, $1C, $04, $04, $00
+
+  ; Char 6: Mirrored ME (メ)
+  ; Looks like: A crossed sensor
+  .byte $42, $24, $18, $18, $24, $42, $00, $00
+
+  ; Char 7: Mirrored HI (ヒ)
+  ; Looks like: A chair or abstract h
+  .byte $0E, $04, $04, $7C, $44, $44, $00, $00
+
+  ; Char 8: Mirrored U (ウ)
+  ; Looks like: A vertical logic gate
+  .byte $08, $3E, $04, $04, $04, $04, $08, $10
+
+  ; Char 9: Mirrored NE (ネ)
+  ; Looks like: A heavy anchor or root
+  .byte $08, $1C, $08, $3E, $04, $08, $14, $22
+
+  ; Char 10: Mirrored HE (ヘ)
+  ; Looks like: A mountain/arrow up
+  .byte $00, $08, $14, $22, $41, $00, $00, $00
+
+  ; Char 11: Mirrored KE (ケ)
+  ; Looks like: A connector joint
+  .byte $18, $24, $42, $42, $7E, $02, $02, $00
+
+  ; Char 12: Mirrored YA (ヤ)
+  ; Looks like: A tilted cross-brace
+  .byte $0C, $14, $24, $44, $1C, $04, $04, $00
+
+  ; Char 13: Mirrored YO (ヨ)
+  ; Looks like: A reverse E / Data stack
+  .byte $3E, $20, $20, $3E, $20, $20, $3E, $00
+
+  ; Char 14: GLITCH 1 (Signal Noise)
+  ; Looks like: Three horizontal dashes (The classic Matrix "Mi")
+  .byte $00, $54, $28, $00, $54, $28, $00, $00
+
+  ; Char 15: GLITCH 2 (Cursor/Block)
+  ; Looks like: A hollow data packet
+  .byte $00, $3C, $24, $24, $24, $3C, $00, $00
+
+  ; Char 16: 0
+  .byte $3C, $42, $42, $42, $42, $42, $3C, $00
+
+  ; Char 17: 1
+  .byte $08, $18, $28, $08, $08, $08, $3E, $00
+
+  ; Char 18: 2
+  .byte $3C, $42, $02, $0C, $30, $40, $7E, $00
+
+  ; Char 19: 3
+  .byte $3C, $42, $02, $1C, $02, $42, $3C, $00
+
+  ; Char 20: 4
+  .byte $0C, $14, $24, $44, $7E, $04, $04, $00
+
+  ; Char 21: 5
+  .byte $7E, $40, $7C, $02, $02, $42, $3C, $00
+
+  ; Char 22: 6
+  .byte $3C, $40, $7C, $42, $42, $42, $3C, $00
+
+  ; Char 23: 7
+  .byte $7E, $02, $04, $08, $10, $20, $20, $00
+
+  ; Char 24: 8
+  .byte $3C, $42, $42, $3C, $42, $42, $3C, $00
+
+  ; Char 25: 9
+  .byte $3C, $42, $42, $42, $3E, $02, $3C, $00
+
+  ; Char 26: +
+  .byte $00, $18, $18, $7E, $18, $18, $00, $00
+
+  ; Char 27: -
+  .byte $00, $00, $00, $7E, $00, $00, $00, $00
+
+  ; Char 28: =
+  .byte $00, $00, $7E, $00, $7E, $00, $00, $00
+
+  ; Char 29: (
+  .byte $0C, $18, $30, $30, $30, $18, $0C, $00
+
+  ; Char 30: )
+  .byte $30, $18, $0C, $0C, $0C, $18, $30, $00
+
+  ; Char 31: {
+  .byte $0C, $18, $18, $30, $18, $18, $0C, $00
+
+  ; Char 32: Space (Replaced } to fix background)
+  .byte $00, $00, $00, $00, $00, $00, $00, $00
+
+  ; Char 33: |
+  .byte $18, $18, $18, $18, $18, $18, $18, $00
+
+  ; Char 34: <
+  .byte $06, $18, $60, $60, $18, $06, $00, $00
+
+  ; Char 35: >
+  .byte $60, $18, $06, $06, $18, $60, $00, $00
+
+  ; Char 36: ?
+  .byte $3C, $42, $04, $08, $10, $00, $10, $00
+
+  ; Char 37: .
+  .byte $00, $00, $00, $00, $00, $18, $18, $00
+
+  ; Char 38: /
+  .byte $02, $06, $0C, $18, $30, $60, $40, $00
+
+  ; Char 39: } (Moved from 32)
+  .byte $30, $18, $18, $0C, $18, $18, $30, $00
